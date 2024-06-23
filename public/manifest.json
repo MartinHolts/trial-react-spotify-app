@@ -1,6 +1,6 @@
 {
   "short_name": "Spotify Playlists",
-  "name": "My Spotify Playlists",
+  "name": "Spotify Playlist Viewer",
   "icons": [
     {
       "src": "favicon.ico",
