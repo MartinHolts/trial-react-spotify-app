@@ -1,48 +1,98 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { authEndpoint, clientId, redirectUri, scopes } from './config';
+import hash from './hash';
 import './App.css';
 
 function App() {
-	const CLIENT_ID = "4b68c0c6d7014e1ea92ea2109b3ddb93";
-	const REDIRECT_URI = "http://localhost:3000/";
-	const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
-	const RESPONSE_TYPE = "token";
+	const [token, setToken] = useState('');
+	const [playlists, setPlaylists] = useState([]);
+	const [songs, setSongs] = useState([]);
+	const [selectedPlaylist, setSelectedPlaylist] = useState(null);
 
-	const [token, setToken] = useState("")
-
-	// **For development only:** Access token retrieved from URL fragment. This approach is not secure for production 
-	// as it exposes the token in the browser history. It is recommended to implement the full OAuth flow with 
-	// server-side token exchange for improved security.
 	useEffect(() => {
-		const hash = window.location.hash
-		let token = window.localStorage.getItem("token")
-
-		// getToken()
-		if (!token && hash) {
-			token = hash.substring(1).split("&").find(elem => elem.startsWith("access_token")).split("=")[1]
-
-			window.location.hash = ""
-			window.localStorage.setItem("token", token)
+		let _token = hash.access_token;
+		if (_token) {
+			setToken(_token);
+			localStorage.setItem('spotifyToken', _token);
+		} else {
+			_token = localStorage.getItem('spotifyToken');
+			if (_token) setToken(_token);
 		}
+	}, []);
 
-		setToken(token)
+	useEffect(() => {
+		if (token) {
+			axios
+				.get('https://api.spotify.com/v1/me/playlists', {
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				})
+				.then((response) => {
+					setPlaylists(response.data.items);
+				});
+		}
+	}, [token]);
 
-	}, [])
+	const fetchSongs = (playlistId) => {
+		axios
+			.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+			.then((response) => {
+				setSongs(response.data.items);
+				setSelectedPlaylist(playlistId);
+			});
+	};
 
-	const logout = () => {
-		setToken("")
-		window.localStorage.removeItem("token")
-	}
+	const handleLogout = () => {
+		setToken('');
+		setPlaylists([]);
+		setSongs([]);
+		setSelectedPlaylist(null);
+		localStorage.removeItem('spotifyToken');
+	};
 
 	return (
 		<div className="App">
-			<header className="App-header">
-				<h1>Spotify React</h1>
-				{!token ?
-					<a href={`${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}`}>Login
-						to Spotify</a>
-					: <button onClick={logout}>Logout</button>}
-
-			</header>
+			{!token && (
+				<a
+					className="btn btn--loginApp-link"
+					href={`${authEndpoint}?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join('%20')}&response_type=token&show_dialog=true`}
+				>
+					Login to Spotify
+				</a>
+			)}
+			{token && (
+				<div>
+					<button onClick={handleLogout} className="btn btn--logout">
+						Log Out
+					</button>
+					<h1>Your Playlists</h1>
+					<ul>
+						{playlists.map((playlist) => (
+							<li key={playlist.id} onClick={() => fetchSongs(playlist.id)}>
+								{playlist.name}
+							</li>
+						))}
+					</ul>
+					{selectedPlaylist && (
+						<div>
+							<h2>Songs in Playlist</h2>
+							<ul>
+								{songs.map((song, index) => (
+									<li key={index}>
+										{song.track.name} by {song.track.artists.map(artist => artist.name).join(', ')}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
