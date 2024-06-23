@@ -9,6 +9,9 @@ function App() {
 
 	const [token, setToken] = useState("")
 
+	// **For development only:** Access token retrieved from URL fragment. This approach is not secure for production 
+	// as it exposes the token in the browser history. It is recommended to implement the full OAuth flow with 
+	// server-side token exchange for improved security.
 	useEffect(() => {
 		const hash = window.location.hash
 		let token = window.localStorage.getItem("token")
