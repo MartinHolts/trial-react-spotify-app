@@ -11,21 +11,23 @@ const App = () => {
 
 	useEffect(() => {
 		const hash = window.location.hash;
-		if (hash) {
-			const _token = hash.substring(1).split("&").find(elem => elem.startsWith("access_token")).split("=")[1];
-			setToken(_token);
-			window.localStorage.setItem('spotifyToken', _token);
-			const expiryTime = new Date().getTime() + 3600 * 1000; // 1 hour
-			window.localStorage.setItem('spotifyTokenExpiryTime', expiryTime);
-			window.location.hash = '';
-		} else {
-			const storedToken = window.localStorage.getItem('spotifyToken');
-			const expiryTime = window.localStorage.getItem('spotifyTokenExpiryTime');
-			if (storedToken && new Date().getTime() < expiryTime) {
-				setToken(storedToken);
-			} else {
-				handleLogout(); // Token expired or not found
+		let _token = localStorage.getItem('spotifyToken');
+		const expiryTime = localStorage.getItem('spotifyTokenExpiryTime');
+
+		if (!_token && hash) {
+			const tokenFragment = hash.substring(1).split("&").find(elem => elem.startsWith("access_token"));
+			if (tokenFragment) {
+				_token = tokenFragment.split("=")[1];
+				setToken(_token);
+				localStorage.setItem('spotifyToken', _token);
+				const newExpiryTime = new Date().getTime() + 3600 * 1000; // 1 hour
+				localStorage.setItem('spotifyTokenExpiryTime', newExpiryTime);
+				window.location.hash = '';
 			}
+		} else if (_token && expiryTime && new Date().getTime() < expiryTime) {
+			setToken(_token);
+		} else {
+			handleLogout();
 		}
 	}, []);
 
@@ -45,7 +47,7 @@ const App = () => {
 		}).catch(error => {
 			console.error('Error fetching playlists:', error.response || error);
 			if (error.response && error.response.status === 403) {
-				handleLogout(); // Invalid token, force re-authentication
+				handleLogout();
 			}
 		});
 	};
@@ -61,14 +63,14 @@ const App = () => {
 		}).catch(error => {
 			console.error('Error fetching songs:', error.response || error);
 			if (error.response && error.response.status === 403) {
-				handleLogout(); // Invalid token, force re-authentication
+				handleLogout();
 			}
 		});
 	};
 
 	const handleLogout = () => {
-		window.localStorage.removeItem('spotifyToken');
-		window.localStorage.removeItem('spotifyTokenExpiryTime');
+		localStorage.removeItem('spotifyToken');
+		localStorage.removeItem('spotifyTokenExpiryTime');
 		setToken('');
 		setPlaylists([]);
 		setSongs([]);
